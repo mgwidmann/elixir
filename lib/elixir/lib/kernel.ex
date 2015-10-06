@@ -3701,11 +3701,34 @@ defmodule Kernel do
 
       for fun <- List.wrap(funs) do
         {name, args, as, as_args} = Kernel.Def.delegate(fun, opts)
+        arity = Enum.count(as_args)
+        # Doesn't work since Code.ensure_compiled/3 isn't always available during compilation
+        # Don't want to try to `ensure_compiled` on elrang modules...
+        if is_elixir?(target), do: Code.ensure_compiled(target, as, arity)
+        # function_exported?/3 lies since `target` may not have yet been compiled...
+        if Module.get_attribute(__MODULE__, :doc) == nil && function_exported?(target, as, arity) do
+          @doc """
+          See `#{inspect target}.#{as}/#{arity}`
+          """
+        end
         def unquote(name)(unquote_splicing(args)) do
           unquote(target).unquote(as)(unquote_splicing(as_args))
         end
       end
     end
+  end
+
+  @doc """
+  """
+  def is_erlang?(module) do
+    not is_elixir?(module)
+  end
+
+  @doc """
+  """
+  def is_elixir?(module) do
+    Atom.to_string(module) |>
+    String.starts_with?("Elixir.")
   end
 
   ## Sigils
